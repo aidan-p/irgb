@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "author": "Aidan Price",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 134.4, "left": 62.44, "attrs": {} },
+    {
+      "type": "wokwi-neopixel-canvas",
+      "id": "neopixels3",
+      "top": 5.6,
+      "left": -103.1,
+      "rotate": 90,
+      "attrs": { "rows": "1", "cols": "32", "pixelate": "circle", "matrixBrightness": "3.5" }
+    },
+    { "type": "wokwi-ir-receiver", "id": "ir1", "top": 27.45, "left": 36.62, "attrs": {} },
+    { "type": "wokwi-ir-remote", "id": "remote1", "top": 38.4, "left": -124.8, "attrs": {} }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "ir1:DAT", "esp:23", "green", [ "v0", "h96", "v48" ] ],
+    [ "ir1:VCC", "esp:5V", "orange", [ "v28.8", "h-19.2", "v182.4" ] ],
+    [ "ir1:GND", "esp:GND.1", "violet", [ "v19.2", "h0", "v144" ] ],
+    [ "neopixels3:DOUT", "esp:18", "green", [ "h-38.4", "v201.6" ] ],
+    [ "neopixels3:DIN", "esp:19", "blue", [ "h-28.8", "v167.4" ] ],
+    [ "neopixels3:VDD", "esp:5V", "orange", [ "h-57.6", "v340.6", "h-105.6" ] ],
+    [ "neopixels3:VSS", "esp:GND.2", "black", [ "h-67.2", "v143.6" ] ]
+  ],
+  "dependencies": {}
+}
