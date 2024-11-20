@@ -1,12 +1,12 @@
 #include <FastLED.h>
 #include <IRremote.h>
 
-#define NUM_LEDS 16
-#define DATA_PIN 10
-#define DATA_PIN_OUT 5
+#define NUM_LEDS 32
+#define DATA_PIN 19
+#define DATA_PIN_OUT 18
+#define IR_PIN 23
 #define LED_TYPE WS2812
 #define COLOR_ORDER GRB
-#define IR_PIN 7
 
 uint16_t BRIGHTNESS = 255;
 
