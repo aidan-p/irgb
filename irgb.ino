@@ -1,20 +1,53 @@
 #include <FastLED.h>
 #include <IRremote.h>
 
-#define NUM_LEDS 32
-#define DATA_PIN 19
-#define DATA_PIN_OUT 18
-#define IR_PIN 23
+#define NUM_LEDS 16
+#define DATA_PIN 10
+#define DATA_PIN_OUT 5
 #define LED_TYPE WS2812
 #define COLOR_ORDER GRB
+#define IR_PIN 7
 
-int16_t BRIGHTNESS = 255;
+uint16_t BRIGHTNESS = 255;
 
 IRrecv receiver(IR_PIN);
 uint8_t decodedData = 162; // 162 is LEDs off; change this value to alter the default
-uint8_t plusOrMinus = 115;
+uint8_t plusOrMinus = 0;
 
 CRGB leds[NUM_LEDS];
+
+// Faster way to change RGB values of LED; otherwise every
+// regular color would require its own for loop
+void LEDOn(int r, int g, int b) {
+  for (int i = 0; i < NUM_LEDS; i++) {
+    leds[i] = CRGB(r, g, b);
+  }
+}
+
+// Fade out a single LED
+void LEDFadeWhiteToBlack(int ledNum) {
+  for (int i = 255; i > 0; i = i - 8) {   // Change i = i - x to alter speed
+    leds[ledNum] = CRGB(i, i, i);
+    FastLED.show();
+  }
+  // Ensures the LED is completely off, can get screwy with different x values
+  leds[ledNum] = CRGB(0, 0, 0);
+  FastLED.show();
+}
+
+// Fade in a single LED
+void LEDFadeBlackToWhite(int ledNum) {
+  for (int i = 0; i < 255; i = i + 8) {   // Change i = i + x to alter speed
+    leds[ledNum] = CRGB(i, i, i);
+    FastLED.show();
+  }
+  // Ensures the LED is completely on, can get screwy with different x values
+  leds[ledNum] = CRGB(255, 255, 255);
+  FastLED.show();
+}
+
+uint16_t starCount = 0;   // Number of "stars"
+uint8_t fadeCounter = 0;  // Used to determine whether or not we fade out
 bool starModeInitializer = false;
 void starMode() {
   // Initializer
@@ -31,11 +64,18 @@ void starMode() {
   uint16_t randNum2 = random(1000);         // Used to determine whether or not we shooting star
 
   // Fades LEDs out
-  fadeToBlackBy(leds, NUM_LEDS, 1);
+  // Change the fadeCounter == x to alter how often this code will run
+  if (fadeCounter == 2) {
+    fadeToBlackBy(leds, NUM_LEDS, 1);
+    fadeCounter = 0;
+  }
+  fadeCounter++;
 
-  // Adds stars based on whether or not our random number will equal 1 [out of whatever number above]
+
+  // Adds stars
   if (randNum == 1) {
     LEDFadeBlackToWhite(randNumLED);
+    starCount++;
   }
 
   //Shooting star
@@ -44,7 +84,6 @@ void starMode() {
       // This if statement will make it so the shooting star doesn't clear existing stars
       if (leds[i] == CRGB(0, 0, 0)) {
         LEDFadeBlackToWhite(i);
-        fadeToBlackBy(leds, NUM_LEDS, 1);
         delay(100);
         LEDFadeWhiteToBlack(i);
       }
@@ -70,54 +109,7 @@ void rainbowMode(uint8_t speed, uint8_t deltaHue) {
   fill_rainbow(leds, NUM_LEDS, thisHue, deltaHue);
 }
 
-// Fade out a single LED
-void LEDFadeWhiteToBlack(int ledNum) {
-  for (int i = 255; i > 0; i = i - 8) {   // Change i = i - x to alter speed
-    leds[ledNum] = CRGB(i, i, i);
-    FastLED.show();
-  }
-  // Ensures the LED is completely off, can get screwy with different x values
-  leds[ledNum] = CRGB(0, 0, 0);
-  FastLED.show();
-}
-
-// Fade in a single LED
-void LEDFadeBlackToWhite(int ledNum) {
-  for (int i = 0; i < 255; i = i + 8) {   // Change i = i + x to alter speed
-    leds[ledNum] = CRGB(i, i, i);
-    FastLED.show();
-  }
-  // Ensures the LED is completely on, can get screwy with different x values
-  leds[ledNum] = CRGB(255, 255, 255);
-  FastLED.show();
-}
-
-// Faster way to change RGB values of LED
-void LEDOn(int r, int g, int b) {
-  for (int i = 0; i < NUM_LEDS; i++) {
-    leds[i] = CRGB(r, g, b);
-  }
-}
-
-void setup() {
-  Serial.begin(9600);
-  Serial.begin(DATA_PIN_OUT);
-
-  receiver.enableIRIn();
-
-  pinMode(DATA_PIN_OUT, OUTPUT);
-  FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
-  FastLED.setBrightness(BRIGHTNESS);
-  FastLED.setMaxPowerInVoltsAndMilliamps(5, 1000);
-
-  randomSeed(analogRead(0));
-  
-  delay(3000);
-}
-
-void loop() {
-  digitalWrite(DATA_PIN_OUT, HIGH);
-
+void decodeData() {
   if (receiver.decode()) {
     if (receiver.decodedIRData.command == 2 || receiver.decodedIRData.command == 152) {
       plusOrMinus = receiver.decodedIRData.command;
@@ -129,7 +121,9 @@ void loop() {
     }
     receiver.resume();  // Receive the next value
   }
+}
 
+void changeEffect() {
   switch (decodedData) {
     case 162: // Power off
       LEDOn(0, 0, 0);
@@ -173,33 +167,53 @@ void loop() {
       LEDOn(0, 195, 255);
       break;
   }
+}
 
-  // Using a different variable to track brightness allows us to modify it while using an animated lighting option
+void changeBrightness() {
   switch (plusOrMinus) {
     case 2:   // + brightness up
-      if (BRIGHTNESS + 25 > 255) {
+      BRIGHTNESS += 12;
+      if (BRIGHTNESS > 255) {
         BRIGHTNESS = 255;
-      }
-      else {
-        BRIGHTNESS += 25;
       }
 
       FastLED.setBrightness(BRIGHTNESS);
       plusOrMinus = 0;
       break;
     case 152: // - brightness down
-      if (BRIGHTNESS - 25 < 0) {
-        BRIGHTNESS = 0;
-      }
-      else {
-        BRIGHTNESS -= 25;
+      BRIGHTNESS -= 12;
+      if (BRIGHTNESS < 96) {
+        BRIGHTNESS = 96;
       }
 
       FastLED.setBrightness(BRIGHTNESS);
       plusOrMinus = 0;
       break;
   }
+}
+
+void setup() {
+  Serial.begin(9600);
+  Serial.begin(DATA_PIN_OUT);
+
+  receiver.enableIRIn();
+
+  pinMode(DATA_PIN_OUT, OUTPUT);
+  FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+  FastLED.setBrightness(BRIGHTNESS);
+  FastLED.setMaxPowerInVoltsAndMilliamps(5, 1000);
+  digitalWrite(DATA_PIN_OUT, HIGH);
+
+  randomSeed(analogRead(0));
+  
+  delay(3000);
+}
+
+void loop() {
+  decodeData();
+  changeEffect();
+  changeBrightness();
 
   FastLED.show();
-  delay(40);  // Small delay
+  delay(20);  // Small delay will improve performance
 }
